@@ -1,10 +1,13 @@
 import json
 import hashlib
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-SEEN_FILE = Path("seen_listings.json")
-LISTINGS_FILE = Path("listings_data.json")
+# On Vercel the filesystem is read-only except /tmp
+_BASE = Path("/tmp") if os.environ.get("VERCEL") else Path(".")
+SEEN_FILE = _BASE / "seen_listings.json"
+LISTINGS_FILE = _BASE / "listings_data.json"
 MAX_STORED = 500
 
 

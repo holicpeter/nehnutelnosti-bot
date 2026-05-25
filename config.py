@@ -20,5 +20,7 @@ class Settings(BaseSettings):
 
     openai_api_key: str = ""
 
+    cron_secret: str = ""
+
 
 settings = Settings()

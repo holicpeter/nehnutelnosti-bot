@@ -1,13 +1,12 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.requests import Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from apscheduler.schedulers.background import BackgroundScheduler
 
 from config import settings
 from store import filter_new, get_all_listings, get_stats
@@ -16,6 +15,8 @@ import scrapers
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
+
+ON_VERCEL = bool(os.environ.get("VERCEL"))
 
 SCRAPER_FNS = [
     scrapers.scrape_reality_sk,
@@ -50,21 +51,23 @@ def run_scraping_job() -> None:
             log.error("Chyba pri odosielaní emailu: %s", e)
 
 
-scheduler = BackgroundScheduler()
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    scheduler.add_job(
-        run_scraping_job,
-        "interval",
-        hours=settings.scrape_interval_hours,
-        id="scraping_job",
-    )
-    scheduler.start()
-    log.info("Scheduler spustený (každých %dh)", settings.scrape_interval_hours)
+    if not ON_VERCEL:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(
+            run_scraping_job,
+            "interval",
+            hours=settings.scrape_interval_hours,
+            id="scraping_job",
+        )
+        scheduler.start()
+        log.info("Scheduler spustený (každých %dh)", settings.scrape_interval_hours)
+        app.state.scheduler = scheduler
     yield
-    scheduler.shutdown()
+    if not ON_VERCEL and hasattr(app.state, "scheduler"):
+        app.state.scheduler.shutdown()
 
 
 app = FastAPI(title="Nehnuteľnosti Bot", lifespan=lifespan)
@@ -92,11 +95,23 @@ def scrape_now():
     return {"status": "done"}
 
 
+@app.get("/api/cron/scrape")
+def cron_scrape(request: Request):
+    """Vercel Cron Job endpoint — called automatically every hour."""
+    auth = request.headers.get("authorization", "")
+    if settings.cron_secret and auth != f"Bearer {settings.cron_secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    run_scraping_job()
+    return {"status": "done"}
+
+
 @app.get("/health")
 def health():
-    job = scheduler.get_job("scraping_job")
+    scheduler = getattr(app.state, "scheduler", None)
+    job = scheduler.get_job("scraping_job") if scheduler else None
     return {
         "status": "ok",
-        "next_run": str(job.next_run_time) if job else None,
+        "mode": "vercel" if ON_VERCEL else "local",
+        "next_run": str(job.next_run_time) if job else "managed by Vercel Cron",
         "interval_hours": settings.scrape_interval_hours,
     }
