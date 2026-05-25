@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nehnuteľnosti Bot</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-icon">🏠</span>
+        <span class="brand-name">Nehnuteľnosti Bot</span>
+      </div>
+      <div class="header-right">
+        <span class="status-badge" id="statusBadge">
+          <span class="dot"></span> Načítavam...
+        </span>
+        <button class="btn-scrape" id="scrapeBtn" onclick="scrapeNow()">
+          ▶ Spustiť teraz
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="stats-row" id="statsRow">
+      <div class="stat-card">
+        <div class="stat-value" id="statTotal">—</div>
+        <div class="stat-label">Celkom videných</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statStored">—</div>
+        <div class="stat-label">Uložených inzerátov</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statNextRun">—</div>
+        <div class="stat-label">Ďalší scraping</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statSources">4</div>
+        <div class="stat-label">Portály</div>
+      </div>
+    </section>
+
+    <section class="filters">
+      <div class="filter-group">
+        <label>Portál</label>
+        <select id="filterSource" onchange="applyFilters()">
+          <option value="">Všetky</option>
+          <option value="reality.sk">reality.sk</option>
+          <option value="nehnutelnosti.sk">nehnutelnosti.sk</option>
+          <option value="topreality.sk">topreality.sk</option>
+          <option value="bazos.sk">bazos.sk</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Max. cena (€)</label>
+        <input type="number" id="filterMaxPrice" placeholder="napr. 200000" oninput="applyFilters()">
+      </div>
+      <div class="filter-group">
+        <label>Min. plocha (m²)</label>
+        <input type="number" id="filterMinArea" placeholder="napr. 40" oninput="applyFilters()">
+      </div>
+      <div class="filter-group">
+        <label>Hľadať</label>
+        <input type="text" id="filterSearch" placeholder="Lokalita, názov..." oninput="applyFilters()">
+      </div>
+    </section>
+
+    <div class="listings-header">
+      <h2 id="listingsCount">Inzeráty</h2>
+      <div class="sort-group">
+        <select id="sortBy" onchange="applyFilters()">
+          <option value="newest">Najnovšie</option>
+          <option value="price_asc">Cena ↑</option>
+          <option value="price_desc">Cena ↓</option>
+          <option value="area_desc">Plocha ↓</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="listings-grid" id="listingsGrid">
+      <div class="empty-state" id="emptyState" style="display:none">
+        <div class="empty-icon">🔍</div>
+        <p>Žiadne inzeráty. Spusti scraping tlačidlom vyššie.</p>
+      </div>
+    </div>
+
+    <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
+      <button class="btn-load-more" onclick="loadMore()">Načítať ďalšie</button>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

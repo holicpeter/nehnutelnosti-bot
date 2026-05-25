@@ -1,11 +1,16 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.requests import Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from config import settings
-from store import filter_new
+from store import filter_new, get_all_listings, get_stats
 from notifier.email import notify
 import scrapers
 
@@ -18,6 +23,9 @@ SCRAPER_FNS = [
     scrapers.scrape_topreality_sk,
     scrapers.scrape_bazos_sk,
 ]
+
+BASE_DIR = Path(__file__).parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
 def run_scraping_job() -> None:
@@ -60,11 +68,22 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Nehnuteľnosti Bot", lifespan=lifespan)
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 
-@app.get("/")
-def root():
-    return {"status": "running", "interval_hours": settings.scrape_interval_hours}
+@app.get("/", response_class=HTMLResponse)
+def dashboard(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+@app.get("/api/listings")
+def api_listings():
+    return get_all_listings()
+
+
+@app.get("/api/stats")
+def api_stats():
+    return get_stats()
 
 
 @app.post("/scrape/now")
@@ -79,4 +98,5 @@ def health():
     return {
         "status": "ok",
         "next_run": str(job.next_run_time) if job else None,
+        "interval_hours": settings.scrape_interval_hours,
     }
